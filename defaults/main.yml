@@ -1,0 +1,4 @@
+mms_agent:
+  enabled: false
+  api_key: ""
+  secret_key: ""

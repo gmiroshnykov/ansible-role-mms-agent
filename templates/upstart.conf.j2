@@ -1,0 +1,15 @@
+description "MongoDB Monitoring Service (MMS) Agent"
+
+setuid nobody
+setgid nogroup
+
+post-stop script
+echo "$(date +'%Y-%m-%d %T,000') INFO mms-agent stopped" >> /var/log/mms-agent/agent.log
+end script
+
+{% if mms_agent.enabled %}
+start on runlevel [2345]
+stop on runlevel [06]
+{% endif %}
+
+exec /usr/bin/python /opt/mms-agent/agent.py >> /var/log/mms-agent/agent.log 2>&1

@@ -1,0 +1,65 @@
+- name: mms-agent - download
+  get_url:
+    url=https://mms.mongodb.com/settings/mms-monitoring-agent.tar.gz
+    dest=/tmp/mms-monitoring-agent.tar.gz
+
+- name: mms-agent - extract
+  sudo: true
+  command: /bin/tar -xzf mms-monitoring-agent.tar.gz -C /opt
+    chdir=/tmp
+    creates=/opt/mms-agent
+
+- name: mms-agent - install python modules
+  sudo: true
+  pip: name={{ item }}
+  with_items:
+    - pymongo
+    - hmac
+    - hashlib
+  notify: restart mms-agent
+
+- name: mms-agent - apply api_key
+  sudo: true
+  lineinfile:
+    dest=/opt/mms-agent/settings.py
+    regexp='^mms_key ='
+    line='mms_key = "{{ mms_agent.api_key | mandatory }}"'
+  notify: restart mms-agent
+  when: mms_agent.enabled
+
+- name: mms-agent - apply secret_key
+  sudo: true
+  lineinfile:
+    dest=/opt/mms-agent/settings.py
+    regexp='^secret_key ='
+    line='secret_key = "{{ mms_agent.secret_key | mandatory }}"'
+  notify: restart mms-agent
+  when: mms_agent.enabled
+
+- name: mms-agent - create log dir
+  sudo: true
+  file:
+    path=/var/log/mms-agent
+    state=directory
+    owner=nobody
+    group=nogroup
+    mode=0755
+
+- name: mms-agent - generate upstart script
+  sudo: true
+  template:
+    src=upstart.conf.j2
+    dest=/etc/init/mms-agent.conf
+  notify: restart mms-agent
+
+- name: mms-agent - install munin-node
+  sudo: true
+  apt: pkg=munin-node
+
+- name: mms-agent - shutdown if disabled
+  sudo: true
+  action: service name={{ item }} state=stopped enabled=no
+  with_items:
+    - mms-agent
+    - munin-node
+  when: mms_agent.enabled == False
